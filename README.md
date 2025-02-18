@@ -1,4 +1,4 @@
-### How start app on macOS:
+### How start app on macOS with brew:
 
 '''bach
 
