@@ -18,7 +18,7 @@ cd backend-consumer && npm run start
 
 // start frontend 
 
-cd frontend && npm run dev
+cd frontend && npm run start
 
 '''
 
