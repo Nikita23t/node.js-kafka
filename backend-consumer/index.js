@@ -1,14 +1,18 @@
 const express = require("express");
 const kafka = require("kafka-node");
 const cors = require("cors");
-
 const app = express();
 app.use(cors());
 
-// SSE clients storage
 const clients = new Set();
 
-// Kafka Consumer setup
+let categoryStats = {
+  scientific: 0,
+  entertainment: 0,
+  other: 0
+};
+
+
 const client = new kafka.KafkaClient({ kafkaHost: "127.0.0.1:9092" });
 const consumer = new kafka.Consumer(
   client,
@@ -16,7 +20,33 @@ const consumer = new kafka.Consumer(
   { autoCommit: true }
 );
 
-// Send messages to all connected clients
+consumer.on("message", (kafkaMessage) => {
+  if (kafkaMessage.topic === "first.topic") {
+    try {
+      const message = JSON.parse(kafkaMessage.value);
+      
+      const category = message.category?.toLowerCase() || 'other';
+      if (categoryStats.hasOwnProperty(category)) {
+        categoryStats[category]++;
+      } else {
+        categoryStats.other++;
+      }
+      
+      console.log("\n=== Новый пост ===");
+      console.log("Наполнениие:", message.content);
+      console.log("Категории:", category);
+      console.log("Статистика:");
+      console.table(categoryStats);
+      
+      clients.forEach(client => {
+        client.res.write(`Данные: ${JSON.stringify(message)}\n\n`);
+      });
+    } catch (err) {
+      console.error("Ошибка:", err);
+    }
+  }
+});
+
 consumer.on("message", (kafkaMessage) => {
   if (kafkaMessage.topic === "first.topic") {
     const message = JSON.parse(kafkaMessage.value);
@@ -27,7 +57,6 @@ consumer.on("message", (kafkaMessage) => {
 });
 
 
-// SSE endpoint
 app.get("/events", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -41,4 +70,11 @@ app.get("/events", (req, res) => {
   });
 });
 
-app.listen(5002, () => console.log("Consumer SSE: 5002"));
+app.get("/stats", (req, res) => {
+  res.json(categoryStats);
+});
+
+app.listen(5002, () => {
+  console.log("бэк 2: 5002");
+  console.log("Ожидание сообщений...");
+});
